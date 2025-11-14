@@ -1,0 +1,158 @@
+Python Best Practices for API Development
+
+Code Style and Formatting:
+- Follow PEP 8 style guide for Python code
+- Use meaningful variable and function names
+- Keep functions small and focused on a single task
+- Use type hints for better code documentation and IDE support
+- Format code consistently using tools like Black or autopep8
+- Limit line length to 88-100 characters
+- Use docstrings for all public modules, functions, classes, and methods
+
+Type Hints:
+Type hints improve code readability and catch errors early:
+def greet(name: str) -> str:
+    return f"Hello, {name}"
+
+For optional parameters:
+from typing import Optional
+def process(data: str, validate: Optional[bool] = None) -> dict:
+    pass
+
+For lists and dictionaries:
+from typing import List, Dict
+def process_items(items: List[str]) -> Dict[str, int]:
+    pass
+
+Error Handling:
+- Use specific exceptions rather than bare except clauses
+- Create custom exception classes for domain-specific errors
+- Always clean up resources using context managers or try/finally
+- Log exceptions with appropriate context
+- Provide meaningful error messages to users
+
+Example:
+try:
+    result = risky_operation()
+except ValueError as e:
+    logger.error(f"Invalid value: {e}")
+    raise
+except Exception as e:
+    logger.exception("Unexpected error occurred")
+    raise CustomError("Operation failed") from e
+finally:
+    cleanup_resources()
+
+Logging:
+- Use the logging module instead of print statements
+- Set appropriate log levels (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+- Include context in log messages
+- Use structured logging for better searchability
+- Avoid logging sensitive information
+
+Example:
+import logging
+logger = logging.getLogger(__name__)
+
+logger.info(f"Processing request for user {user_id}")
+logger.warning(f"Retry attempt {attempt} for operation")
+logger.error(f"Failed to process request: {error}")
+
+Testing:
+- Write tests for all critical functionality
+- Use pytest for testing framework
+- Mock external dependencies (APIs, databases)
+- Aim for high test coverage (>80%)
+- Test edge cases and error conditions
+- Use fixtures for common test setup
+- Keep tests independent and repeatable
+
+Async Programming:
+- Use async/await for I/O-bound operations
+- Avoid blocking the event loop
+- Use asyncio for concurrent operations
+- Be careful with thread safety in async code
+- Use appropriate async libraries (httpx instead of requests)
+
+Example:
+async def fetch_data(url: str) -> dict:
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url)
+        return response.json()
+
+Dependency Management:
+- Use virtual environments for isolation
+- Pin dependency versions in requirements.txt
+- Separate dev dependencies from production dependencies
+- Regularly update dependencies for security patches
+- Use tools like pip-audit to check for vulnerabilities
+
+Environment Variables:
+- Never hardcode secrets or configuration
+- Use python-dotenv for local development
+- Validate required environment variables at startup
+- Provide sensible defaults where appropriate
+- Document all required environment variables
+
+Example:
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv('API_KEY')
+if not API_KEY:
+    raise ValueError("API_KEY environment variable is required")
+
+Database Best Practices:
+- Use connection pooling for better performance
+- Always close connections properly
+- Use context managers for transactions
+- Parameterize queries to prevent SQL injection
+- Index frequently queried columns
+- Use migrations for schema changes
+
+API Design:
+- Follow REST principles
+- Use appropriate HTTP methods (GET, POST, PUT, DELETE)
+- Return appropriate status codes
+- Version your API (/api/v1/)
+- Implement pagination for list endpoints
+- Use consistent naming conventions
+- Provide clear error messages
+
+Security:
+- Validate and sanitize all inputs
+- Use parameterized queries to prevent injection
+- Implement authentication and authorization
+- Use HTTPS in production
+- Rate limit API endpoints
+- Keep dependencies updated
+- Don't expose stack traces to users
+- Store passwords using proper hashing (bcrypt, argon2)
+
+Performance:
+- Profile code to find bottlenecks
+- Cache expensive operations
+- Use generators for large datasets
+- Avoid premature optimization
+- Monitor memory usage
+- Use connection pooling for external services
+- Implement proper indexing for databases
+
+Documentation:
+- Write clear docstrings for all public APIs
+- Keep README up to date
+- Document setup and deployment procedures
+- Provide usage examples
+- Document environment variables
+- Maintain a changelog
+- Use tools like Sphinx for API documentation
+
+Code Organization:
+- Group related functionality into modules
+- Use meaningful package and module names
+- Keep files focused and reasonably sized
+- Separate configuration from code
+- Use __init__.py to control imports
+- Follow a consistent project structure

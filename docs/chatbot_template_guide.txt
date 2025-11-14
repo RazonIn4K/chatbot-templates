@@ -1,0 +1,127 @@
+Chatbot Template Guide
+
+Overview:
+This chatbot template provides a production-ready foundation for building FAQ bots and RAG-powered assistants using FastAPI, ChromaDB, and multiple LLM providers.
+
+Architecture:
+The template follows a modular architecture with clear separation of concerns:
+
+1. Server Layer (server.py):
+   - FastAPI application with REST endpoints
+   - Request/response validation using Pydantic
+   - Error handling and logging
+   - Health check endpoint
+
+2. LLM Client (llm_client.py):
+   - Multi-provider support (OpenAI and Anthropic)
+   - Retry logic with exponential backoff
+   - Environment-based configuration
+   - Singleton pattern for efficiency
+
+3. Retriever (retriever.py):
+   - ChromaDB integration for vector search
+   - Semantic similarity search
+   - Document metadata management
+   - Collection statistics and management
+
+4. Ingestion Pipeline (ingest.py):
+   - Document loading from files
+   - Text chunking strategies
+   - Embedding generation
+   - Batch processing for efficiency
+
+API Endpoints:
+- GET / : API information and available endpoints
+- GET /health : Health check with LLM connectivity status
+- POST /chat : Generate responses with optional context
+- POST /chat-with-retrieval : RAG-powered responses with automatic context retrieval
+
+Environment Variables:
+LLM Configuration:
+- LLM_PROVIDER: Provider name (openai or anthropic)
+- OPENAI_API_KEY: OpenAI API key
+- ANTHROPIC_API_KEY: Anthropic API key
+- LLM_MODEL: Model name to use
+- LLM_TEMPERATURE: Response creativity (0.0-1.0)
+- LLM_MAX_TOKENS: Maximum response length
+
+Vector Database Configuration:
+- CHROMA_PERSIST_DIR: Directory for ChromaDB data
+- CHROMA_COLLECTION_NAME: Collection name for documents
+- CHUNK_SIZE: Size of document chunks (default: 500)
+- CHUNK_OVERLAP: Overlap between chunks (default: 50)
+
+Getting Started:
+1. Install dependencies: pip install -r requirements.txt
+2. Configure environment variables in .env file
+3. Add documents to the docs/ folder
+4. Run ingestion: python ingest.py
+5. Start the server: python server.py
+6. Test the API at http://localhost:8000/docs
+
+Document Preparation:
+- Place documents in the docs/ folder
+- Supported formats: .txt, .md, .pdf (with additional libraries)
+- Organize documents by topic for better retrieval
+- Include metadata in filenames or front matter
+
+Customization:
+System Prompt:
+- Edit prompts/rag_system_prompt.txt to customize chatbot behavior
+- Define response style, tone, and constraints
+- Specify how to handle missing information
+
+Chunking Strategy:
+- Adjust CHUNK_SIZE and CHUNK_OVERLAP in ingest.py
+- Smaller chunks: More precise but may lack context
+- Larger chunks: More context but may dilute relevance
+
+Retrieval Parameters:
+- top_k: Number of documents to retrieve (default: 3)
+- min_score: Minimum similarity threshold (default: 0.0)
+- Adjust based on your use case and testing
+
+Testing:
+Run tests with: pytest
+Run specific tests: pytest tests/test_server.py
+Generate coverage report: pytest --cov=. --cov-report=html
+
+The test suite includes:
+- Unit tests for all endpoints
+- Mocked LLM client to avoid API calls
+- Integration tests for the retrieval pipeline
+- Edge case handling tests
+
+Deployment Considerations:
+- Use environment variables for all secrets
+- Implement rate limiting for production
+- Add authentication for sensitive endpoints
+- Monitor LLM usage and costs
+- Set up logging aggregation
+- Consider caching for frequent queries
+- Use persistent storage for ChromaDB in production
+- Implement proper error tracking and alerting
+
+Performance Optimization:
+- Cache embeddings for frequently accessed documents
+- Use batch processing for ingestion
+- Optimize chunk size for your use case
+- Consider using GPU for embedding generation
+- Implement connection pooling for LLM clients
+- Use async/await throughout for better concurrency
+
+Security:
+- Never commit .env files with real API keys
+- Validate and sanitize all user inputs
+- Implement rate limiting to prevent abuse
+- Use HTTPS in production
+- Regularly update dependencies
+- Monitor for unusual usage patterns
+
+Troubleshooting:
+- Check logs for detailed error messages
+- Verify API keys are correctly set
+- Ensure ChromaDB directory has write permissions
+- Test individual components separately
+- Use the health endpoint to verify LLM connectivity
+- Check collection statistics with get_collection_stats()

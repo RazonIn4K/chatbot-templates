@@ -259,6 +259,98 @@ class TestChatWithRetrievalEndpoint:
         )
         assert response.status_code == 400
 
+    @patch('server.retrieve_relevant_context')
+    @patch('server.get_llm_client')
+    def test_chat_with_retrieval_handles_empty_collection(
+        self, mock_get_client, mock_retrieve, client, mock_llm_client
+    ):
+        """Test /chat-with-retrieval when collection is empty."""
+        mock_get_client.return_value = mock_llm_client
+        mock_retrieve.return_value = "[No documents in database] Please run the ingestion script to add documents to the knowledge base."
+
+        response = client.post(
+            "/chat-with-retrieval",
+            json={"message": "What is FastAPI?"}
+        )
+
+        data = response.json()
+        assert response.status_code == 200
+        assert data["context_used"] is True
+
+        # LLM should still be called, but with the "no documents" message
+        mock_llm_client.generate.assert_called_once()
+        call_args = mock_llm_client.generate.call_args
+        assert "[No documents in database]" in call_args[1]["context"]
+
+    @patch('server.retrieve_relevant_context')
+    @patch('server.get_llm_client')
+    def test_chat_with_retrieval_realistic_scenario(
+        self, mock_get_client, mock_retrieve, client, mock_llm_client
+    ):
+        """Test /chat-with-retrieval with realistic retrieved context."""
+        mock_get_client.return_value = mock_llm_client
+        mock_llm_client.generate.return_value = (
+            "FastAPI is a modern, fast web framework for building APIs with Python. "
+            "It's known for its high performance and developer-friendly features."
+        )
+
+        # Simulate realistic retrieved context from ChromaDB
+        realistic_context = (
+            "FastAPI is a modern, fast (high-performance) web framework for building APIs with Python 3.7+.\n\n"
+            "---\n\n"
+            "Key Features:\n"
+            "- Fast: Very high performance, on par with NodeJS and Go\n"
+            "- Easy to use and learn\n"
+            "- Automatic interactive documentation\n\n"
+            "---\n\n"
+            "Installation: pip install fastapi uvicorn"
+        )
+        mock_retrieve.return_value = realistic_context
+
+        response = client.post(
+            "/chat-with-retrieval",
+            json={"message": "Tell me about FastAPI"}
+        )
+
+        data = response.json()
+        assert response.status_code == 200
+        assert data["context_used"] is True
+        assert len(data["response"]) > 0
+
+        # Verify retriever was called correctly
+        mock_retrieve.assert_called_once()
+        call_args = mock_retrieve.call_args
+        assert call_args[1]["query"] == "Tell me about FastAPI"
+        assert call_args[1]["top_k"] == 3
+
+        # Verify LLM received the realistic context
+        llm_call_args = mock_llm_client.generate.call_args
+        assert realistic_context == llm_call_args[1]["context"]
+
+    @patch('server.retrieve_relevant_context')
+    @patch('server.get_llm_client')
+    def test_chat_with_retrieval_handles_retrieval_error(
+        self, mock_get_client, mock_retrieve, client, mock_llm_client
+    ):
+        """Test /chat-with-retrieval handles retrieval errors gracefully."""
+        mock_get_client.return_value = mock_llm_client
+        mock_retrieve.return_value = "[Error retrieving context: Connection failed]"
+
+        response = client.post(
+            "/chat-with-retrieval",
+            json={"message": "What is Python?"}
+        )
+
+        # Should still return 200 and pass error message to LLM
+        data = response.json()
+        assert response.status_code == 200
+        assert data["context_used"] is True
+
+        # LLM should be called with error message
+        mock_llm_client.generate.assert_called_once()
+        call_args = mock_llm_client.generate.call_args
+        assert "[Error retrieving context:" in call_args[1]["context"]
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

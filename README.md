@@ -15,8 +15,9 @@ This repository provides a complete FastAPI server template for building chatbot
 
 - **Multi-Provider LLM Support**: Works with OpenAI (GPT-3.5, GPT-4) and Anthropic (Claude)
 - **Retry Logic**: Automatic retries with exponential backoff for API calls
-- **Vector DB Ready**: Stub implementation with integration guides for Pinecone, Chroma, Weaviate, and Qdrant
-- **Comprehensive Testing**: Unit tests with mocked LLM clients
+- **ChromaDB Integration**: Production-ready vector database for semantic search
+- **Document Ingestion**: Automated pipeline for indexing documents into the knowledge base
+- **Comprehensive Testing**: Unit tests with mocked LLM clients and retrieval
 - **Interactive API Docs**: Automatic OpenAPI documentation at `/docs`
 - **Health Checks**: Monitor system status and LLM connectivity
 
@@ -43,6 +44,16 @@ pip install -r requirements.txt
 ```bash
 cp .env.example .env
 # Edit .env with your API keys and configuration
+```
+
+5. Ingest documents into the vector database:
+```bash
+python ingest.py
+```
+
+6. Start the server:
+```bash
+python server.py
 ```
 
 ## Configuration
@@ -72,15 +83,13 @@ LLM_TEMPERATURE=0.7      # Response creativity (0.0-1.0)
 LLM_MAX_TOKENS=500       # Maximum response length
 ```
 
-#### Future: Vector Database Configuration
+#### Optional: ChromaDB Configuration
 
 ```bash
-VECTOR_DB_TYPE=pinecone
-VECTOR_DB_URL=your-vector-db-url
-VECTOR_DB_API_KEY=your-vector-db-api-key
-VECTOR_DB_INDEX=your-index-name
-RETRIEVER_TOP_K=3
-RETRIEVER_MIN_SCORE=0.7
+CHROMA_PERSIST_DIR=./chroma_db        # Directory for ChromaDB data (default: ./chroma_db)
+CHROMA_COLLECTION_NAME=chatbot_docs   # Collection name (default: chatbot_docs)
+CHUNK_SIZE=500                        # Size of document chunks (default: 500)
+CHUNK_OVERLAP=50                      # Overlap between chunks (default: 50)
 ```
 
 ### Supported Models
@@ -232,6 +241,98 @@ print(response.json()["response"])
 
 Visit `http://localhost:8000/docs` for interactive API documentation powered by Swagger UI.
 
+## Document Ingestion
+
+The template includes a powerful document ingestion pipeline that indexes your documents into ChromaDB for semantic search.
+
+### Quick Start
+
+1. **Add your documents** to the `docs/` folder:
+   ```bash
+   # Supported formats: .txt, .md, .markdown
+   cp your-documents.txt docs/
+   ```
+
+2. **Run the ingestion script**:
+   ```bash
+   python ingest.py
+   ```
+
+3. **Verify ingestion**:
+   ```bash
+   python ingest.py --stats
+   ```
+
+### Ingestion Options
+
+The `ingest.py` script supports various options:
+
+```bash
+# Basic ingestion
+python ingest.py
+
+# Custom docs directory
+python ingest.py --docs-dir /path/to/docs
+
+# Custom chunk size and overlap
+python ingest.py --chunk-size 1000 --chunk-overlap 100
+
+# Reset collection before ingesting (deletes existing data)
+python ingest.py --reset
+
+# Show collection statistics after ingestion
+python ingest.py --stats
+
+# Use a different collection name
+python ingest.py --collection my_docs
+
+# Combine options
+python ingest.py --docs-dir ./my-docs --chunk-size 800 --reset --stats
+```
+
+### How It Works
+
+1. **Document Loading**: Reads all `.txt` and `.md` files from the docs folder
+2. **Chunking**: Splits documents into overlapping chunks (default: 500 chars with 50 char overlap)
+3. **Embedding**: Automatically generates embeddings using ChromaDB's default model
+4. **Indexing**: Stores chunks with metadata in ChromaDB for fast semantic search
+5. **Persistence**: Data persists to disk in `./chroma_db/` by default
+
+### Chunking Strategy
+
+The ingestion script uses intelligent chunking:
+- **Paragraph breaks** are preferred (splits on `\n\n`)
+- **Sentence breaks** are used if no paragraph breaks (splits on `. `, `! `, `? `)
+- **Hard limit** at chunk_size characters
+- **Overlap** maintains context between chunks
+
+### Example Workflow
+
+```bash
+# 1. Prepare documents
+mkdir -p docs
+echo "Your documentation here" > docs/my_guide.txt
+
+# 2. Run ingestion
+python ingest.py --reset --stats
+
+# 3. Test retrieval
+python server.py &
+curl -X POST "http://localhost:8000/chat-with-retrieval" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Tell me about the documentation"}'
+```
+
+### Metadata
+
+Each chunk is stored with metadata:
+- `source`: Original file path
+- `filename`: Name of the source file
+- `chunk_index`: Position in the document
+- `total_chunks`: Total chunks from this document
+
+This metadata enables source attribution and quality monitoring.
+
 ## Project Structure
 
 ```
@@ -241,12 +342,19 @@ chatbot-templates/
 ├── requirements.txt               # Python dependencies
 ├── server.py                      # FastAPI server with endpoints
 ├── llm_client.py                  # LLM client with multi-provider support
-├── retriever.py                   # Context retrieval (stub with integration guides)
+├── retriever.py                   # ChromaDB retriever for semantic search
+├── ingest.py                      # Document ingestion script
 ├── prompts/
 │   └── rag_system_prompt.txt     # RAG system prompt template
+├── docs/                          # Documentation to be indexed
+│   ├── fastapi_overview.txt      # Sample: FastAPI documentation
+│   ├── rag_explained.txt         # Sample: RAG concepts
+│   ├── chatbot_template_guide.txt # Sample: Template usage guide
+│   └── python_best_practices.txt  # Sample: Python best practices
 ├── tests/
 │   ├── __init__.py
 │   └── test_server.py            # Unit tests for API endpoints
+├── chroma_db/                     # ChromaDB data (created after ingestion)
 └── .gitignore                    # Git ignore rules
 ```
 
@@ -288,36 +396,51 @@ async def your_function(request: YourRequestModel):
 
 Edit `prompts/rag_system_prompt.txt` to customize the chatbot's behavior and response style.
 
-### Extending the Retriever
+### Working with ChromaDB
 
-The `retriever.py` file currently contains a stub implementation. To integrate a real vector database:
+The template uses **ChromaDB** as the vector database, which is already integrated and ready to use:
 
-1. **Choose a vector database** (Pinecone, Chroma, Weaviate, Qdrant)
-2. **Install the client library**:
-   ```bash
-   # Pinecone
-   pip install pinecone-client sentence-transformers
+#### Key Features:
+- **Persistent storage**: Data is saved to disk in `./chroma_db/`
+- **Automatic embeddings**: Uses ChromaDB's default embedding model
+- **Cosine similarity**: Optimized for semantic search
+- **Local-first**: No external services required
+- **Scalable**: Works for development and production
 
-   # Chroma
-   pip install chromadb
+#### Managing Collections:
 
-   # Weaviate
-   pip install weaviate-client
+```python
+from retriever import get_collection_stats, reset_collection
 
-   # Qdrant
-   pip install qdrant-client
-   ```
+# Get collection statistics
+stats = get_collection_stats()
+print(f"Documents: {stats['count']}")
 
-3. **Update `retriever.py`** with your implementation (see detailed integration guides in the file)
+# Reset collection (deletes all data)
+reset_collection()
+```
 
-4. **Configure environment variables** for your vector DB
+#### Customizing Retrieval:
 
-5. **Prepare your documents**:
-   - Chunk documents into segments
-   - Generate embeddings
-   - Upload to vector database
+Edit `server.py` to adjust retrieval parameters:
 
-See `retriever.py` for detailed integration guides for each vector database.
+```python
+# In chat_with_retrieval endpoint
+retrieved_context = retrieve_relevant_context(
+    query=request.message,
+    top_k=5,           # Retrieve more documents
+    min_score=0.7      # Filter by similarity threshold
+)
+```
+
+#### Alternative Vector Databases:
+
+While ChromaDB is integrated, you can switch to other databases:
+- **Pinecone**: Managed cloud service, great for production
+- **Weaviate**: GraphQL-based, powerful filtering
+- **Qdrant**: High-performance, Rust-based
+
+See the original `retriever.py` stub (git history) for integration guides.
 
 ## Architecture
 
@@ -339,9 +462,11 @@ See `retriever.py` for detailed integration guides for each vector database.
 
 ### Retriever (`retriever.py`)
 
-- **Stub implementation**: Ready for vector DB integration
-- **Integration guides**: Documentation for 4 popular vector DBs
+- **ChromaDB integration**: Production-ready vector database
+- **Semantic search**: Cosine similarity with automatic embeddings
 - **Flexible interface**: Returns text or structured documents
+- **Collection management**: Statistics, reset, and configuration options
+- **Persistence**: Local storage with configurable directory
 
 ## Next Steps
 

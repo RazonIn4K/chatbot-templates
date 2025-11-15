@@ -1,0 +1,22 @@
+[
+  {
+    "tenant_id": "studio",
+    "collection": "studio_faq",
+    "fallback": "Thanks for reaching out to Studio Support! We'll escalate if this answer misses the mark.",
+    "top_k": 4,
+    "system_prompt": "You are StudioBot, focused on creative agency onboarding questions."
+  },
+  {
+    "tenant_id": "retail",
+    "collection": "retail_faq",
+    "fallback": "Retail team will reply shortly.",
+    "top_k": 3
+  },
+  {
+    "tenant_id": "b2b_saas",
+    "collection": "b2b_saas_faq",
+    "fallback": "A CSM will follow up shortly if this answer doesn't help.",
+    "top_k": 4,
+    "system_prompt": "You are a B2B SaaS support assistant. Reference onboarding, billing, and success processes with friendly, concise responses."
+  }
+]

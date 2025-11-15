@@ -2,8 +2,9 @@
 Tests for the FastAPI server endpoints.
 """
 
+import asyncio
 import pytest
-from fastapi.testclient import TestClient
+import httpx
 from unittest.mock import Mock, patch
 import sys
 from pathlib import Path
@@ -17,8 +18,33 @@ from llm_client import LLMClient, LLMClientError
 
 @pytest.fixture
 def client():
-    """Create a test client for the FastAPI app."""
-    return TestClient(app)
+    """Create a test client for the FastAPI app using httpx's ASGI transport."""
+    transport = httpx.ASGITransport(app=app)
+
+    async def _startup():
+        await transport.__aenter__()
+        return httpx.AsyncClient(transport=transport, base_url="http://testserver")
+
+    async_client = asyncio.run(_startup())
+
+    class SyncClient:
+        def __init__(self, inner_client: httpx.AsyncClient):
+            self._inner = inner_client
+
+        def get(self, *args, **kwargs):
+            return asyncio.run(self._inner.get(*args, **kwargs))
+
+        def post(self, *args, **kwargs):
+            return asyncio.run(self._inner.post(*args, **kwargs))
+
+    client_instance = SyncClient(async_client)
+    yield client_instance
+
+    async def _shutdown():
+        await async_client.aclose()
+        await transport.__aexit__(None, None, None)
+
+    asyncio.run(_shutdown())
 
 
 @pytest.fixture
@@ -350,6 +376,117 @@ class TestChatWithRetrievalEndpoint:
         mock_llm_client.generate.assert_called_once()
         call_args = mock_llm_client.generate.call_args
         assert "[Error retrieving context:" in call_args[1]["context"]
+
+
+class TestSupportBotEndpoint:
+    """Tests for the /support-bot/query endpoint."""
+
+    @patch('support_bot.record_support_interaction')
+    @patch('support_bot.get_llm_client')
+    @patch('support_bot.retrieve_relevant_documents')
+    def test_support_bot_query_hits_retriever(
+        self,
+        mock_retrieve,
+        mock_get_client,
+        mock_record,
+        client
+    ):
+        """Ensure the support bot performs retrieval and returns formatted sources."""
+
+        mock_retrieve.return_value = [
+            {
+                "content": "Deploy the bot with docker run -p 8000:8000 ...",
+                "metadata": {"filename": "getting_started.md"}
+            }
+        ]
+        mock_llm = Mock()
+        mock_llm.generate.return_value = "Deploy with docker run ..."
+        mock_get_client.return_value = mock_llm
+
+        response = client.post(
+            "/support-bot/query",
+            json={"user_id": "demo", "message": "How do I deploy this bot?"}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["fallback_used"] is False
+        assert data["sources"] == ["getting_started.md"]
+        assert "docker run" in data["answer"].lower()
+
+        mock_retrieve.assert_called_once()
+        retrieve_kwargs = mock_retrieve.call_args[1]
+        assert retrieve_kwargs["query"] == "How do I deploy this bot?"
+        mock_record.assert_called_once()
+        record_kwargs = mock_record.call_args.kwargs
+        assert record_kwargs["tenant_id"] == "default"
+        assert record_kwargs["response_time_ms"] >= 0
+        assert data["tenant_id"] == "default"
+
+    @patch('support_bot.record_support_interaction')
+    @patch('support_bot.get_llm_client')
+    @patch('support_bot.retrieve_relevant_documents')
+    def test_support_bot_query_uses_fallback_when_no_docs(
+        self,
+        mock_retrieve,
+        mock_get_client,
+        mock_record,
+        client
+    ):
+        """Return the fallback response when no FAQ entries match."""
+
+        mock_retrieve.return_value = []
+        mock_get_client.return_value = Mock()
+
+        response = client.post(
+            "/support-bot/query",
+            json={"user_id": "demo", "message": "Unknown question"}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["fallback_used"] is True
+        assert data["sources"] == []
+        assert data["tenant_id"] == "default"
+        mock_record.assert_called_once()
+        assert mock_record.call_args.kwargs["response_time_ms"] >= 0
+
+    @patch('support_bot._resolve_config')
+    @patch('support_bot.record_support_interaction')
+    @patch('support_bot.get_llm_client')
+    @patch('support_bot.retrieve_relevant_documents')
+    def test_support_bot_query_routes_by_tenant(
+        self,
+        mock_retrieve,
+        mock_get_client,
+        mock_record,
+        mock_resolve,
+        client
+    ):
+        """Tenant ID should switch collection/response metadata."""
+
+        mock_resolve.return_value = {
+            'collection': 'studio_docs',
+            'top_k': 2,
+            'fallback': 'Studio fallback',
+            'system_prompt': 'Studio prompt',
+            'tenant_id': 'studio'
+        }
+        mock_retrieve.return_value = []
+        mock_get_client.return_value = Mock()
+
+        response = client.post(
+            "/support-bot/query",
+            json={"user_id": "demo", "message": "Unknown", "tenant_id": "studio"}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["fallback_used"] is True
+        assert data["tenant_id"] == "studio"
+        mock_resolve.assert_called_once_with("studio")
+        mock_record.assert_called_once()
+        assert mock_record.call_args.kwargs["tenant_id"] == "studio"
 
 
 if __name__ == "__main__":

@@ -6,11 +6,12 @@ This server provides chat endpoints with RAG capabilities.
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 import logging
 
 from llm_client import get_llm_client, LLMClientError
 from retriever import retrieve_relevant_context
+from support_bot import run_support_bot_flow
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -49,6 +50,23 @@ class ChatResponse(BaseModel):
     context_used: bool
 
 
+class SupportBotRequest(BaseModel):
+    """Request payload for the support bot endpoint."""
+    user_id: str
+    message: str
+    tenant_id: Optional[str] = None
+
+
+class SupportBotResponse(BaseModel):
+    """Response payload for the support bot endpoint."""
+    user_id: str
+    answer: str
+    fallback_used: bool
+    sources: List[str]
+    retrieved_context: Optional[str] = None
+    tenant_id: str
+
+
 @app.get("/")
 async def root():
     """Root endpoint with API information."""
@@ -58,6 +76,7 @@ async def root():
         "endpoints": {
             "/chat": "POST - Send a chat message with optional context (uses LLM)",
             "/chat-with-retrieval": "POST - Chat with automatic context retrieval from vector DB",
+            "/support-bot/query": "POST - FAQ-backed support assistant for Upwork demos",
             "/health": "GET - Health check endpoint",
             "/docs": "GET - Interactive API documentation"
         }
@@ -202,6 +221,31 @@ async def chat_with_retrieval(request: ChatRequest):
             status_code=500,
             detail=f"Internal server error: {str(e)}"
         )
+
+
+@app.post("/support-bot/query", response_model=SupportBotResponse)
+async def support_bot_query(request: SupportBotRequest):
+    """FAQ-backed support assistant with tenant-aware RAG over docs/faq collections."""
+
+    if not request.message or not request.message.strip():
+        raise HTTPException(status_code=400, detail="Message cannot be empty")
+
+    if not request.user_id or not request.user_id.strip():
+        raise HTTPException(status_code=400, detail="user_id is required")
+
+    try:
+        result = run_support_bot_flow(
+            user_id=request.user_id.strip(),
+            message=request.message.strip(),
+            tenant_id=request.tenant_id.strip() if request.tenant_id else None
+        )
+        return SupportBotResponse(**result)
+    except LLMClientError as exc:
+        logger.error(f"LLM client error in support bot: {exc}")
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.error(f"Unexpected error in /support-bot/query: {exc}")
+        raise HTTPException(status_code=500, detail="Internal server error") from exc
 
 
 if __name__ == "__main__":

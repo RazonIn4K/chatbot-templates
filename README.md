@@ -8,11 +8,24 @@ A production-ready FastAPI-based chatbot server template with LLM integration an
 
 ## 🚀 Quick Demo
 
+### Loom Demo
+
+▶️ **Watch the 4-minute overview:**  
+[GPT + Notion Research Agent](INSERT_LINK_HERE)
+
+**What you’ll see:**
+
+- FastAPI backend with RAG support
+- Live query demo with context retrieval
+- How I wire this into Notion for status updates
+
 **Prerequisites:**
+
 - Python 3.8+
 - OpenAI or Anthropic API key (or use mock mode for testing)
 
 **Run the demo:**
+
 ```bash
 # 1. Install dependencies
 pip install -r requirements.txt
@@ -31,6 +44,7 @@ curl -X POST http://localhost:8000/support-bot/query \
 ```
 
 **Expected Output:**
+
 ```json
 {
   "user_id": "demo",
@@ -42,18 +56,21 @@ curl -X POST http://localhost:8000/support-bot/query \
 ```
 
 **What this proves:**
+
 - FastAPI server runs with RAG-powered FAQ bot
 - Retrieves relevant context from knowledge base
 - Returns structured responses with source citations
 - Perfect for GPT research agent jobs where clients need Notion integration + status updates
 
 **Alternative demo (no API key needed):**
+
 ```bash
 # Run tests to see functionality without API calls
 pytest tests/test_server.py -v
 ```
 
 **Next Steps:**
+
 - See `docs/loom_script.md` for client demo walkthrough
 - See `examples/simple_faq_rag/` for ingestion examples
 - See `docs/upwork/UPWORK_GPT_NOTION_AGENT.md` for Upwork summary
@@ -63,6 +80,7 @@ pytest tests/test_server.py -v
 ## Overview
 
 This repository provides a complete FastAPI server template for building chatbot applications with:
+
 - **LLM Integration**: Support for OpenAI and Anthropic models
 - **RAG System**: Context retrieval and augmented generation
 - **Multiple Endpoints**: Simple chat and retrieval-enhanced chat
@@ -131,34 +149,40 @@ See `docs/architecture.md` for a deeper dive into the modules and RAG flow.
 ## Installation
 
 1. Clone the repository:
+
 ```bash
 git clone https://github.com/RazonIn4K/chatbot-templates.git
 cd chatbot-templates
 ```
 
 2. Create a virtual environment (recommended):
+
 ```bash
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
 3. Install dependencies:
+
 ```bash
 pip install -r requirements.txt
 ```
 
 4. Configure environment variables:
+
 ```bash
 cp .env.example .env
 # Edit .env with your API keys and configuration
 ```
 
 5. Ingest documents into the vector database:
+
 ```bash
 python ingest.py
 ```
 
 6. Start the server:
+
 ```bash
 python server.py
 ```
@@ -222,11 +246,13 @@ SUPPORT_BOT_FALLBACK="Thanks! A specialist will follow up."  # Friendly fallback
 ### Supported Models
 
 **OpenAI:**
+
 - `gpt-3.5-turbo` (default, fast and cost-effective)
 - `gpt-4` (more capable, slower)
 - `gpt-4-turbo-preview` (latest GPT-4)
 
 **Anthropic:**
+
 - `claude-3-haiku-20240307` (default, fastest)
 - `claude-3-sonnet-20240229` (balanced)
 - `claude-3-opus-20240229` (most capable)
@@ -236,11 +262,13 @@ SUPPORT_BOT_FALLBACK="Thanks! A specialist will follow up."  # Friendly fallback
 ### Starting the Server
 
 Run the FastAPI server:
+
 ```bash
 python server.py
 ```
 
 Or use uvicorn directly:
+
 ```bash
 uvicorn server:app --reload
 ```
@@ -258,6 +286,7 @@ Root endpoint with API information.
 Health check endpoint that verifies LLM connectivity.
 
 **Response:**
+
 ```json
 {
   "status": "healthy",
@@ -271,6 +300,7 @@ Health check endpoint that verifies LLM connectivity.
 Send a chat message with optional context and get an LLM-generated response.
 
 **Request Body:**
+
 ```json
 {
   "message": "What is FastAPI?",
@@ -279,6 +309,7 @@ Send a chat message with optional context and get an LLM-generated response.
 ```
 
 **Response:**
+
 ```json
 {
   "response": "FastAPI is a modern, fast (high-performance) web framework...",
@@ -292,6 +323,7 @@ Send a chat message with optional context and get an LLM-generated response.
 Chat endpoint with automatic context retrieval from vector database (currently uses stub).
 
 **Request Body:**
+
 ```json
 {
   "message": "What is RAG?"
@@ -299,6 +331,7 @@ Chat endpoint with automatic context retrieval from vector database (currently u
 ```
 
 **Response:**
+
 ```json
 {
   "response": "RAG stands for Retrieval-Augmented Generation...",
@@ -312,6 +345,7 @@ Chat endpoint with automatic context retrieval from vector database (currently u
 FAQ-backed endpoint that looks inside `docs/faq`, retrieves the most relevant snippets, and falls back to a friendly auto-reply when nothing matches.
 
 **Request Body:**
+
 ```json
 {
   "user_id": "demo-client",
@@ -321,6 +355,7 @@ FAQ-backed endpoint that looks inside `docs/faq`, retrieves the most relevant sn
 ```
 
 **Response:**
+
 ```json
 {
   "user_id": "demo-client",
@@ -402,12 +437,14 @@ The template includes a powerful document ingestion pipeline that indexes your d
 ### Quick Start
 
 1. **Add your documents** to the `docs/` folder:
+
    ```bash
    # Supported formats: .txt, .md, .markdown
    cp your-documents.txt docs/
    ```
 
 2. **Run the ingestion script**:
+
    ```bash
    python ingest.py
    ```
@@ -455,6 +492,7 @@ python ingest.py --docs-dir ./my-docs --chunk-size 800 --reset --stats
 ### Chunking Strategy
 
 The ingestion script uses intelligent chunking:
+
 - **Paragraph breaks** are preferred (splits on `\n\n`)
 - **Sentence breaks** are used if no paragraph breaks (splits on `. `, `! `, `? `)
 - **Hard limit** at chunk_size characters
@@ -480,6 +518,7 @@ curl -X POST "http://localhost:8000/chat-with-retrieval" \
 ### Metadata
 
 Each chunk is stored with metadata:
+
 - `source`: Original file path
 - `filename`: Name of the source file
 - `chunk_index`: Position in the document
@@ -507,6 +546,7 @@ Use this trio to demonstrate ingestion, retrieval, and the API surface area insi
 ## Website FAQ Chatbot (Embed Example)
 
 Marketing teams often ask how to surface the support bot without code changes. Point them to [`docs/website_faq_chatbot.md`](docs/website_faq_chatbot.md) which covers:
+
 - Deploying the FastAPI container behind HTTPS.
 - A self-contained HTML/JS widget calling `POST /support-bot/query`.
 - Tips for branding, per-session `user_id` hashing, and analytics review.
@@ -583,6 +623,7 @@ Host multiple customer-facing bots on one FastAPI process by adding tenant overr
 Each tenant inherits the base `.env` config unless overridden, and analytics log per-tenant breakdowns automatically.
 
 ### B2B SaaS Support Preset
+
 - Seeded sample FAQs live in `docs/faq/b2b_saas_*` and the tenant config already contains `tenant_id: b2b_saas` → `collection: b2b_saas_faq`.
 - Ingest them before demos:
   ```bash
@@ -710,6 +751,7 @@ Edit `prompts/rag_system_prompt.txt` to customize the chatbot's behavior and res
 The template uses **ChromaDB** as the vector database, which is already integrated and ready to use:
 
 #### Key Features:
+
 - **Persistent storage**: Data is saved to disk in `./chroma_db/`
 - **Automatic embeddings**: Uses ChromaDB's default embedding model
 - **Cosine similarity**: Optimized for semantic search
@@ -745,6 +787,7 @@ retrieved_context = retrieve_relevant_context(
 #### Alternative Vector Databases:
 
 While ChromaDB is integrated, you can switch to other databases:
+
 - **Pinecone**: Managed cloud service, great for production
 - **Weaviate**: GraphQL-based, powerful filtering
 - **Qdrant**: High-performance, Rust-based
@@ -782,36 +825,43 @@ See the original `retriever.py` stub (git history) for integration guides.
 Here are suggested enhancements to build on this template:
 
 1. **Integrate a Vector Database**
+
    - Choose Pinecone, Chroma, Weaviate, or Qdrant
    - Replace stub in `retriever.py`
    - Prepare and upload your knowledge base
 
 2. **Add Streaming Responses**
+
    - Implement Server-Sent Events (SSE)
    - Stream tokens as they're generated
    - Improve perceived performance
 
 3. **Implement Conversation History**
+
    - Add session management
    - Store conversation context
    - Enable multi-turn dialogues
 
 4. **Add Authentication**
+
    - Implement API key authentication
    - Add rate limiting
    - Track usage per user
 
 5. **Enhance Error Handling**
+
    - Add circuit breakers
    - Implement fallback responses
    - Better retry strategies
 
 6. **Add Observability**
+
    - Integrate with monitoring tools (Prometheus, Datadog)
    - Add structured logging (JSON logs)
    - Track latency and error rates
 
 7. **Document Management**
+
    - Add endpoints for uploading documents
    - Implement chunking and embedding pipeline
    - Support multiple document formats
@@ -834,6 +884,7 @@ Contributions are welcome! Feel free to submit issues or pull requests.
 ### "OPENAI_API_KEY environment variable not set"
 
 Make sure you've created a `.env` file with your API key:
+
 ```bash
 cp .env.example .env
 # Edit .env with your actual API key
@@ -842,6 +893,7 @@ cp .env.example .env
 ### "Module not found" errors
 
 Ensure all dependencies are installed:
+
 ```bash
 pip install -r requirements.txt
 ```
@@ -849,6 +901,7 @@ pip install -r requirements.txt
 ### Tests failing
 
 Make sure you're running tests from the project root:
+
 ```bash
 cd chatbot-templates
 pytest
@@ -864,6 +917,7 @@ pytest
 ## Support
 
 For issues and questions:
+
 - Open an issue on GitHub
 - Check the `/docs` endpoint for API documentation
 - Review the inline code documentation
@@ -871,6 +925,7 @@ For issues and questions:
 ## Acknowledgments
 
 Built with:
+
 - [FastAPI](https://fastapi.tiangolo.com/) - Modern Python web framework
 - [OpenAI](https://openai.com/) - GPT models
 - [Anthropic](https://anthropic.com/) - Claude models

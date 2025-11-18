@@ -2,6 +2,64 @@
 
 A production-ready FastAPI-based chatbot server template with LLM integration and RAG (Retrieval-Augmented Generation) capabilities.
 
+**This repo is part of my Upwork portfolio for GPT research agents with Notion integration, FAQ chatbots, and RAG-powered knowledge assistants.**
+
+---
+
+## 🚀 Quick Demo
+
+**Prerequisites:**
+- Python 3.8+
+- OpenAI or Anthropic API key (or use mock mode for testing)
+
+**Run the demo:**
+```bash
+# 1. Install dependencies
+pip install -r requirements.txt
+
+# 2. Set up environment (copy example, add your API key)
+cp .env.example .env
+# Edit .env and add: OPENAI_API_KEY=your_key_here
+
+# 3. Start the server
+uvicorn server:app --reload
+
+# 4. In another terminal, test the support bot endpoint
+curl -X POST http://localhost:8000/support-bot/query \
+  -H "Content-Type: application/json" \
+  -d '{"user_id":"demo","message":"How do I deploy this chatbot?"}'
+```
+
+**Expected Output:**
+```json
+{
+  "user_id": "demo",
+  "answer": "Deploy by running docker run -p 8000:8000 --env-file .env ...",
+  "sources": ["getting_started.md"],
+  "retrieved_context": "Source: getting_started.md...",
+  "fallback_used": false
+}
+```
+
+**What this proves:**
+- FastAPI server runs with RAG-powered FAQ bot
+- Retrieves relevant context from knowledge base
+- Returns structured responses with source citations
+- Perfect for GPT research agent jobs where clients need Notion integration + status updates
+
+**Alternative demo (no API key needed):**
+```bash
+# Run tests to see functionality without API calls
+pytest tests/test_server.py -v
+```
+
+**Next Steps:**
+- See `docs/loom_script.md` for client demo walkthrough
+- See `examples/simple_faq_rag/` for ingestion examples
+- See `docs/upwork/UPWORK_GPT_NOTION_AGENT.md` for Upwork summary
+
+---
+
 ## Overview
 
 This repository provides a complete FastAPI server template for building chatbot applications with:

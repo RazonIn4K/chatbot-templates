@@ -488,6 +488,55 @@ class TestSupportBotEndpoint:
         mock_record.assert_called_once()
         assert mock_record.call_args.kwargs["tenant_id"] == "studio"
 
+    @patch('support_bot.record_support_interaction')
+    @patch('support_bot.get_llm_client')
+    @patch('support_bot.retrieve_relevant_documents')
+    def test_support_bot_demo_scenario(
+        self,
+        mock_retrieve,
+        mock_get_client,
+        mock_record,
+        client
+    ):
+        """Test the exact demo scenario from the README."""
+        # 1. Mock the retriever to return a document
+        mock_retrieve.return_value = [
+            {
+                "content": "To deploy this chatbot, you can use Docker. The command is `docker run -p 8000:8000 ...`",
+                "metadata": {"filename": "getting_started.md"}
+            }
+        ]
+
+        # 2. Mock the LLM client to generate a response
+        mock_llm = Mock()
+        mock_llm.generate.return_value = "Deploy by running `docker run -p 8000:8000 --env-file .env ...`"
+        mock_get_client.return_value = mock_llm
+
+        # 3. Call the endpoint with the demo query
+        response = client.post(
+            "/support-bot/query",
+            json={"user_id": "demo", "message": "How do I deploy this chatbot?"}
+        )
+
+        # 4. Assert the response matches the README's expected output
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["user_id"] == "demo"
+        assert "Deploy by running" in data["answer"]
+        assert data["sources"] == ["getting_started.md"]
+        assert "To deploy this chatbot" in data["retrieved_context"]
+        assert data["fallback_used"] is False
+
+        # 5. Verify mocks were called as expected
+        mock_retrieve.assert_called_once_with(
+            query="How do I deploy this chatbot?",
+            top_k=3, # Default top_k from support_bot.py
+            collection_name="support_faq" # Default collection from support_bot.py
+        )
+        mock_llm.generate.assert_called_once()
+        mock_record.assert_called_once()
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

@@ -241,6 +241,9 @@ SUPPORT_BOT_COLLECTION=support_faq              # Change the collection backing 
 SUPPORT_BOT_TOP_K=3                             # Number of FAQ chunks to load into the prompt
 SUPPORT_BOT_FALLBACK="Thanks! A specialist will follow up."  # Friendly fallback text
 # SUPPORT_BOT_SYSTEM_PROMPT="Custom system prompt text"      # Optional style override
+
+# ConfigCat Feature Flags
+CONFIGCAT_SDK_KEY=your-configcat-sdk-key-here
 ```
 
 ### Supported Models

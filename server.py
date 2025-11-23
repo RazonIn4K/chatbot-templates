@@ -3,6 +3,7 @@ FastAPI server for chatbot-templates with LLM integration.
 This server provides chat endpoints with RAG capabilities.
 """
 
+import os
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from pathlib import Path
@@ -17,6 +18,24 @@ from support_bot import run_support_bot_flow
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# ConfigCat Integration
+try:
+    import configcatclient
+
+    configcat_client = configcatclient.get(
+        os.environ.get("CONFIGCAT_SDK_KEY", "localhost")
+    )
+except ImportError:
+    configcat_client = None
+    logger.warning("configcat-client not installed. Feature flags disabled.")
+
+
+def is_debug_enabled():
+    if not configcat_client:
+        return False
+    return configcat_client.get_value("show_debug_panels", False)
+
+
 app = FastAPI(title="Chatbot Templates API", version="2.0.0")
 
 # Load RAG system prompt
@@ -27,7 +46,7 @@ RAG_PROMPT_FILE = PROMPTS_DIR / "rag_system_prompt.txt"
 def load_system_prompt() -> str:
     """Load the RAG system prompt from file."""
     try:
-        with open(RAG_PROMPT_FILE, 'r') as f:
+        with open(RAG_PROMPT_FILE, "r") as f:
             return f.read()
     except FileNotFoundError:
         logger.warning(f"System prompt file not found: {RAG_PROMPT_FILE}")
@@ -39,12 +58,14 @@ SYSTEM_PROMPT = load_system_prompt()
 
 class ChatRequest(BaseModel):
     """Request model for chat endpoint."""
+
     message: str
     context: Optional[str] = None
 
 
 class ChatResponse(BaseModel):
     """Response model for chat endpoint."""
+
     response: str
     system_prompt: str
     context_used: bool
@@ -52,6 +73,7 @@ class ChatResponse(BaseModel):
 
 class SupportBotRequest(BaseModel):
     """Request payload for the support bot endpoint."""
+
     user_id: str
     message: str
     tenant_id: Optional[str] = None
@@ -59,6 +81,7 @@ class SupportBotRequest(BaseModel):
 
 class SupportBotResponse(BaseModel):
     """Response payload for the support bot endpoint."""
+
     user_id: str
     answer: str
     fallback_used: bool
@@ -78,8 +101,8 @@ async def root():
             "/chat-with-retrieval": "POST - Chat with automatic context retrieval from vector DB",
             "/support-bot/query": "POST - FAQ-backed support assistant for Upwork demos",
             "/health": "GET - Health check endpoint",
-            "/docs": "GET - Interactive API documentation"
-        }
+            "/docs": "GET - Interactive API documentation",
+        },
     }
 
 
@@ -92,14 +115,11 @@ async def health():
         return {
             "status": "healthy",
             "llm_provider": client.provider,
-            "llm_model": client.model
+            "llm_model": client.model,
         }
     except Exception as e:
         logger.error(f"Health check failed: {str(e)}")
-        return {
-            "status": "unhealthy",
-            "error": str(e)
-        }
+        return {"status": "unhealthy", "error": str(e)}
 
 
 @app.post("/chat", response_model=ChatResponse)
@@ -135,7 +155,7 @@ async def chat(request: ChatRequest):
         response_text = llm_client.generate(
             system_prompt=SYSTEM_PROMPT,
             user_message=request.message,
-            context=request.context if context_used else None
+            context=request.context if context_used else None,
         )
 
         logger.info("Response generated successfully")
@@ -143,21 +163,17 @@ async def chat(request: ChatRequest):
         return ChatResponse(
             response=response_text,
             system_prompt=SYSTEM_PROMPT,
-            context_used=context_used
+            context_used=context_used,
         )
 
     except LLMClientError as e:
         logger.error(f"LLM client error: {str(e)}")
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to generate response: {str(e)}"
+            status_code=500, detail=f"Failed to generate response: {str(e)}"
         )
     except Exception as e:
         logger.error(f"Unexpected error in /chat: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Internal server error: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @app.post("/chat-with-retrieval", response_model=ChatResponse)
@@ -185,10 +201,7 @@ async def chat_with_retrieval(request: ChatRequest):
     try:
         # Retrieve relevant context
         logger.info(f"Retrieving context for message: {request.message[:50]}...")
-        retrieved_context = retrieve_relevant_context(
-            query=request.message,
-            top_k=3
-        )
+        retrieved_context = retrieve_relevant_context(query=request.message, top_k=3)
 
         # Get LLM client
         llm_client = get_llm_client()
@@ -198,29 +211,23 @@ async def chat_with_retrieval(request: ChatRequest):
         response_text = llm_client.generate(
             system_prompt=SYSTEM_PROMPT,
             user_message=request.message,
-            context=retrieved_context
+            context=retrieved_context,
         )
 
         logger.info("Response generated successfully")
 
         return ChatResponse(
-            response=response_text,
-            system_prompt=SYSTEM_PROMPT,
-            context_used=True
+            response=response_text, system_prompt=SYSTEM_PROMPT, context_used=True
         )
 
     except LLMClientError as e:
         logger.error(f"LLM client error: {str(e)}")
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to generate response: {str(e)}"
+            status_code=500, detail=f"Failed to generate response: {str(e)}"
         )
     except Exception as e:
         logger.error(f"Unexpected error in /chat-with-retrieval: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Internal server error: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @app.post("/support-bot/query", response_model=SupportBotResponse)
@@ -237,7 +244,7 @@ async def support_bot_query(request: SupportBotRequest):
         result = run_support_bot_flow(
             user_id=request.user_id.strip(),
             message=request.message.strip(),
-            tenant_id=request.tenant_id.strip() if request.tenant_id else None
+            tenant_id=request.tenant_id.strip() if request.tenant_id else None,
         )
         return SupportBotResponse(**result)
     except LLMClientError as exc:
@@ -250,4 +257,5 @@ async def support_bot_query(request: SupportBotRequest):
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

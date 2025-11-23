@@ -1,6 +1,6 @@
-# chatbot-templates
+# Chatbot Templates: RAG-Powered FastAPI Server
 
-A production-ready FastAPI-based chatbot server template with LLM integration and RAG (Retrieval-Augmented Generation) capabilities.
+This repo provides a production-ready chatbot server that answers questions using your own documents. It's perfect for building client-facing FAQ bots, internal knowledge assistants, or research agents that integrate with tools like Notion.
 
 **This repo is part of my Upwork portfolio for GPT research agents with Notion integration, FAQ chatbots, and RAG-powered knowledge assistants.**
 
@@ -34,8 +34,8 @@ pip install -r requirements.txt
 cp .env.example .env
 # Edit .env and add: OPENAI_API_KEY=your_key_here
 
-# 3. Start the server
-uvicorn server:app --reload
+# 3. Start the server with the Makefile command
+make demo
 
 # 4. In another terminal, test the support bot endpoint
 curl -X POST http://localhost:8000/support-bot/query \
@@ -66,7 +66,7 @@ curl -X POST http://localhost:8000/support-bot/query \
 
 ```bash
 # Run tests to see functionality without API calls
-pytest tests/test_server.py -v
+make test-demo
 ```
 
 **Next Steps:**
@@ -74,6 +74,14 @@ pytest tests/test_server.py -v
 - See `docs/loom_script.md` for client demo walkthrough
 - See `examples/simple_faq_rag/` for ingestion examples
 - See `docs/upwork/UPWORK_GPT_NOTION_AGENT.md` for Upwork summary
+
+---
+
+## Where this fits for clients
+
+*   **Automated Customer Support:** Build an FAQ chatbot that answers common questions from a knowledge base, reducing support tickets and improving response times.
+*   **Lead Generation & Qualification:** Create a website chatbot that engages visitors, qualifies leads, and schedules demos by integrating with your CRM or calendar.
+*   **Internal Knowledge Management:** Deploy a research assistant for your team that can instantly answer questions about internal documentation, policies, and procedures.
 
 ---
 
